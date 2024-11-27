@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 import requests
 import sqlite3
@@ -9,15 +9,19 @@ API_URL = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs
 
 # Функция для инициализации базы данных
 def init_db():
+    #Соединяет с базой данных, если базы не существует, создается new
     conn = sqlite3.connect("users.db")
-    cursor = conn.cursor()
-    cursor.execute('''
+
+    cursor = conn.cursor() #Объект курсора для создания sql запросов
+    
+    # Выполняет sql запрос, создаёт таблицу, вставляет данные, обновляет записи и выполняет SELECT-запросы.
+    cursor.execute(''' 
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
             preferred_crypto TEXT DEFAULT 'bitcoin'
         )
     ''')
-    conn.commit()
+    conn.commit() # cохраняет изменеия в базе 
     conn.close()
 
 # Сохранение настроек пользователя
@@ -43,16 +47,16 @@ def get_user_settings(user_id):
 # Функция для получения данных о криптовалютах
 def get_crypto_data(crypto):
     try:
-        response = requests.get(API_URL)
+        response = requests.get(API_URL) # Выполняет HTTP запрос
         response.raise_for_status()  # Проверка на успешный запрос
-        data = response.json()
+        data = response.json() # json -> python
         return data.get(crypto, {}).get('usd', "Данные не найдены")
     except requests.exceptions.RequestException as e:
         return f"Ошибка запроса: {e}"
 
 # Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
+    user_id = update.effective_user.id # Представляет данные о входящем обновлении (сообщении, кнопке, команде и т. д.), полученном ботом.
     save_user_settings(user_id, 'bitcoin')  # По умолчанию
 
     # Текст приветствия
@@ -69,6 +73,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     await update.message.reply_text(message)
+
+# # Обработчик команды /start с кнопками
+# async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     keyboard = [['/price', '/settings'], ['/help']]
+#     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+#     message = (
+#         "👋 Добро пожаловать в бот-криптоассистент!\n\n"
+#         "📊 Команды:\n"
+#         "/price - Узнать цену криптовалюты\n"
+#         "/settings - Выбрать криптовалюту\n"
+#         "/help - Справка\n\n"
+#         "💬 Выберите команду."
+#     )
+#     await update.message.reply_text(message, reply_markup=reply_markup)
+
 
 # Обработчик команды /price
 async def get_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
